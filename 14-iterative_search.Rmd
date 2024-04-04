@@ -13,14 +13,14 @@
 
 We're interested in developing a classification model to classify sex for the palmers penguins dataset using a radial basis function support vector machine (svm).
 
-```{r message = FALSE, warning = FALSE}
+```{r 14-setup, message = FALSE, warning = FALSE}
 library(tidyverse)
 library(tidymodels)
 library(palmerpenguins)
 library(patchwork)
 library(finetune)
-  
-
+```
+```{r 14-data-setup}
 penguins_df <- penguins %>%
   filter(!is.na(sex)) %>% # discarding NA obs
   select(-year, -island) # not useful
@@ -36,7 +36,7 @@ roc_res <- metric_set(roc_auc) # accuracy, a classification metric
 
 Let's fit a radial basis function support vector machine to the palmers penguins and tune the SVM cost parameter (`cost()`) and the σ parameter in the kernel function (`rbf_sigma`):
 
-```{r}
+```{r 14-recipe-model}
 svm_rec <- 
   recipe(sex ~ ., data = penguins_df) 
 
@@ -48,7 +48,7 @@ svm_spec <-
 
 Now, let's set up our `workflow()` and feeding it our svm model
 
-```{r}
+```{r 14-workflow}
 svm_wflow <- 
   workflow() %>% 
   add_model(svm_spec) %>% 
@@ -57,14 +57,14 @@ svm_wflow <-
 
 Let's zoom in on the default parameter values for our two tuning parameters:
 
-```{r}
+```{r 14-dials-fun}
 cost()
 rbf_sigma()
 ```
 
 We can change them:
 
-```{r message = F, warning = F}
+```{r 14-svm_param, message = F, warning = F}
 svm_param <- 
   svm_wflow %>% 
   parameters() %>% 
@@ -73,7 +73,7 @@ svm_param <-
 
 Because the methods that we will go over later need some resampled performance statistics before proceeding, we can use `tune_grid()` function to resample these values:
 
-```{r message = F, warning = F}
+```{r 14-grid, eval = FALSE, message = F, warning = F}
 start_grid <- 
   svm_param %>% 
   update(
@@ -86,7 +86,15 @@ set.seed(2)
 svm_initial <- 
   svm_wflow %>% 
   tune_grid(resamples = penguins_folds, grid = start_grid, metrics = roc_res)
+```
+```{r 14-grid-save, include = FALSE, eval = FALSE}
+saveRDS(svm_initial, here::here("data", "14-svm_initial.rds"))
+```
+```{r 14-grid-load, include = FALSE}
+svm_initial <- readRDS(here::here("data", "14-svm_initial.rds"))
+```
 
+```{r 14-collect_metrics}
 collect_metrics(svm_initial)
 ```
 
@@ -188,7 +196,7 @@ The `tune_bayes()` function sets up Bayesian optimization iterative search. It's
 
 Let's keep going with our SVM model. We can use the earlier SVM results as the initial substrate. Once again, we're trying to maximize ROC AUC.
 
-```{r}
+```{r 14-tune, eval = FALSE}
 ctrl <- control_bayes(verbose = TRUE) # can also add more arguments, like no_improve
 
 set.seed(420)
@@ -204,14 +212,19 @@ svm_bo <-
     control = ctrl
   )
 ```
-
+```{r 14-save-tune, include = FALSE, eval = FALSE}
+saveRDS(svm_bo, here::here("data", "14-svm_bo.rds"))
+```
+```{r 14-read-tune, include = FALSE}
+svm_bo <- readRDS(here::here("data", "14-svm_bo.rds"))
+```
 Looks like the improvements occurred at iterations 8, 11, 13, 12 and 10. We can pull the best result(s) like so:
 
-```{r}
+```{r 14-show-best}
 show_best(svm_bo) # same call as with grid search
 ```
 
-```{r}
+```{r 14-plot-best}
 p1 <- autoplot(svm_bo, type = "performance")
 p2 <- autoplot(svm_bo, type = "parameters")
 
@@ -286,7 +299,7 @@ The `tune_sim_anneal()` function uses the *generalized simulated annealing* meth
 
 Implemention is very similar to grid search and Bayesian optimization. We can print out the best results, and have visual assessments of our search went across iterations.
 
-```{r}
+```{r 14-sim-anneal, eval = FALSE}
 ctrl_sa <- control_sim_anneal(verbose = TRUE, no_improve = 10L)
 
 set.seed(1234)
@@ -301,7 +314,14 @@ svm_sa <-
     iter = 50,
     control = ctrl_sa
   )
-
+```
+```{r 14-save-sim-anneal, include = FALSE, eval = FALSE}
+saveRDS(svm_sa, here::here("data", "14-svm_sa.rds"))
+```
+```{r 14-read-sim-anneal, include = FALSE}
+svm_sa <- readRDS(here::here("data", "14-svm_sa.rds"))
+```
+```{r 14-show-best-sim-anneal}
 show_best(svm_sa)
 ```
 
@@ -311,3 +331,85 @@ Voilààà!
 
 -   **Get started with tidymodels and TidyTuesday Palmer penguins**: <https://juliasilge.com/blog/palmer-penguins/>
 -   **A Visual Exploration of Gaussian Processes**: <https://distill.pub/2019/visual-exploration-gaussian-processes/#Multivariate>
+
+## Meeting Videos
+
+### Cohort 1
+
+`r knitr::include_url("https://www.youtube.com/embed/MD0XjJkZkxE")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:18:01	Conor Tompkins:	The cat is behind you
+```
+</details>
+
+### Cohort 2
+
+`r knitr::include_url("https://www.youtube.com/embed/B2RRopTnwds")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:40:55	Janita Botha:	can you zoom in please?
+00:44:58	Janita Botha:	all good
+00:45:00	Janita Botha:	:)
+00:47:42	Janita Botha:	thanks stephen
+00:47:48	Amélie Gourdon-Kanhukamwe (she/they):	Thanks!
+00:48:24	Stephen:	https://docs.google.com/spreadsheets/d/1vD4LG4_nhsxSAxXiBi42iKIvZXQtNxgB5C_PUkIZ0wo/edit#gid=0
+00:53:14	Janita Botha:	Yes!
+00:54:07	Janita Botha:	bye!
+00:54:12	Amélie Gourdon-Kanhukamwe (she/they):	Bye!
+```
+</details>
+
+
+### Cohort 3
+
+`r knitr::include_url("https://www.youtube.com/embed/a_tg77VOtHk")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:11:21	Daniel Chen:	is this like picking the parameters for a given distribution? like beta(0, 1) vs beta(0.1, 0.9)?
+00:12:09	Daniel Chen:	ok nvm this is the svm example right now. I guess that question is for the Bayesian point
+00:12:49	Jiwan Heo:	I think so, updating priors to make posterior distribution
+00:31:36	Daniel Chen:	the usemodels is mainly a way to help you out with somewhat reasonable defaults
+00:35:02	Daniel Chen:	like the "caterpillar plot" to help you see if things converged?
+00:35:08	Jiwan Heo:	yea!
+00:38:13	Daniel Chen:	i forgot what data is using? the post resamples?
+00:38:23	Daniel Chen:	you might need to manually pull that out from the data?
+00:44:57	Daniel Chen:	for the bayes stuff. is there a way to change the backend for the bayes calculation? e.g., using STAN or something?
+00:47:33	Jiwan Heo:	maybe in the model spec?
+00:47:43	Jiwan Heo:	bayes.model = linear_reg() %>%
+  set_engine(engine = "stan", 
+             prior_intercept = prior.dist, 
+             prior = prior.dist) %>%
+  set_mode(mode = "regression")
+00:49:08	Daniel Chen:	oooh. yeah. okay
+00:54:52	Daniel Chen:	yeah i guess this ends up being hard since bayes is anaother layer of things to understand the examples
+00:55:07	Daniel Chen:	i do wonder if the SVM example or something can/should be simplified to be used as a chapter 0
+00:55:26	Daniel Chen:	I've only really used grid search in the past personally in the past
+00:55:36	Daniel Chen:	but i was before tidymodels and all hand coded
+00:55:42	Daniel Chen:	expand.grid was a friend :)
+01:03:16	Jiwan Heo:	have to jump off, thank you for the presentation!
+01:09:27	Daniel Chen:	i'm good for next week
+```
+</details>
+
+### Cohort 4
+
+`r knitr::include_url("https://www.youtube.com/embed/OefbbZN8WT0")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:30:17	Stephen Charlesworth:	https://www.youtube.com/watch?v=FyyVbuLZav8
+00:30:37	Stephen Charlesworth:	https://www.youtube.com/embed/enNgiWuIHAo
+```
+</details>

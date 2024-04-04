@@ -5,3 +5,8 @@
 .DS_Store
 _book
 _bookdown_files
+bookclub-tmwr.Rmd
+bookclub-tmwr.knit.md
+bookclub-tmwr_files
+*.html
+libs

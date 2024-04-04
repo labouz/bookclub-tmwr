@@ -46,7 +46,7 @@ The `tidyverse` offers packages that are easily readable and understood by human
 
 Consider the `mtcars` dataset, which comprises fuel consumption and 10 aspects of autombile design and performance from 1973-1974. Previewing the first six rows of the data, we see:
 
-```{r, echo = FALSE}
+```{r head, echo = FALSE}
 head(mtcars)
 ```
 
@@ -56,7 +56,7 @@ If we wanted to arrange these in ascending order based on the `mpg` and `gear` v
 
 The function `arrange()`, in the `dplyr` package of the `tidyverse`, takes a data frame and column names as such:
 
-```{r, eval = FALSE}
+```{r arrange, eval = FALSE}
 arrange(.data = mtcars, gear, mpg)
 ```
 
@@ -228,7 +228,15 @@ tibble(col = 1:5, list_col = template_list)
 
 The following example shows how to use the `tidyverse` to read in data (with the `readr` package) and easily manipulate it (using the `dplyr` and `lubridate` packages). We will walk through these steps during our meeting.
 
-```{r read wrangle data, message = FALSE}
+```{r 02-cache-stations, include = FALSE}
+library(tidyverse)
+library(lubridate)
+
+# saveRDS(head(all_stations, 10), here::here("data", "02_all_stations.rds"))
+all_stations <- readRDS(here::here("data", "02_all_stations.rds"))
+```
+
+```{r read wrangle data, message = FALSE, eval = FALSE}
 library(tidyverse)
 library(lubridate)
 
@@ -509,5 +517,23 @@ objects named with a preceding period are considered "hidden". they won't show u
 00:55:30	Morgan Grovenburg:	Sweet
 01:03:01	Hannah:	I haven't used it yet but recently came across this package for working with pipelines: https://github.com/MilesMcBain/breakerofchains - it lets you run the code up to the line of the cursor
 01:04:24	Ildiko Czeller:	I think data.frame is only "preferred" if your script relies on one of the behaviors that tibble "corrects"
+```
+</details>
+
+### Cohort 4
+
+`r knitr::include_url("https://www.youtube.com/embed/d2Wva4Vhk1I")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:01:48	Isabella Velásquez:	Morning everybody. Eating breakfast 🙂
+00:18:29	Federica Gazzelloni:	nest and unnest: https://tidyr.tidyverse.org/reference/nest.html
+00:25:55	Isabella Velásquez:	I had a similar question about library(package) and install.packages(“package”)… but I don’t remember the answer so I did not internalize the learning 🙃
+00:55:38	Esmeralda Cruz:	oh yes, that happen with group bye and then summarize
+00:58:10	Anna-Leigh Brown:	mtcars %>% rownames_to_column('car') %>% group_by(cyl,gear) %>% mutate(disp_mean = mean(disp))
+01:00:38	Isabella Velásquez:	Thanks all - I got to drop off ^_^ Great walkthrough, Brandon!
+01:01:09	Esmeralda Cruz:	Thanks and Meery christmas
 ```
 </details>

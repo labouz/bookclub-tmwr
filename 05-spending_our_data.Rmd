@@ -27,7 +27,7 @@ Choosing how to conduct the split of the data into training and test sets may no
 
 The most common type of sampling is known as random sampling and it is done readily in R using the [rsample](https://rsample.tidymodels.org) package with the `initial_split()`function. For the [Ames housing dataset](https://www.tmwr.org/ames.html), the call would be:
 
-```{r message=FALSE}
+```{r setup-05, message=FALSE}
 library(tidymodels)
 set.seed(123)
 data(ames)
@@ -37,7 +37,7 @@ ames_split
 
 The object `ames_split` is an `rsplit` object. To get the training and test results you can call on `training()` and `test()`:
 
-```{r}
+```{r train-test-05}
 ames_train <- training(ames_split)
 ames_test  <- testing(ames_split)
 ```
@@ -49,17 +49,26 @@ In many instances, random splitting is not suitable. This includes datasets that
 
 Splitting methods suited for datasets containing class imbalance should be considered. Let's consider a #Tidytuesday dataset on [Himalayan expedition members](https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-09-22/readme.md), which Julia Silge recently explored [here](https://juliasilge.com/blog/himalayan-climbing/) using **{tidymodels}**. 
 
-```{r message=FALSE}
+```{r 05-load-members, include = FALSE}
+library(tidyverse)
+library(skimr)
+# saveRDS(members, here::here("data", "05_members.rds"))
+members <- readRDS(here::here("data", "05_members.rds"))
+```
+
+```{r skim-05a, message=FALSE, eval = FALSE}
 library(tidyverse)
 library(skimr)
 members <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-09-22/members.csv") 
+```
 
+```{r skim-05b, message = FALSE}
 skim(members)
 ```
 
 Let's say we were interested in predicting the likelihood of survival or death for an expedition member. It would be a good idea to check for class imbalance: 
 
-```{r message=FALSE}
+```{r janitor-05, message=FALSE}
 library(janitor)
 
 members %>% 
@@ -69,18 +78,69 @@ members %>%
 
 We can see that nearly 99% of people survive their expedition. This dataset would be ripe for a sampling technique adept at handling such extreme class imbalance. This technique is called *stratified sampling*, in which "the training/test split is conducted separately within each class and then these subsamples are combined into the overall training and test set". Operationally, this is done by using the `strata` argument inside `initial_split()`:
 
-```{r}
+```{r more-split-05}
 set.seed(123)
 members_split <- initial_split(members, prop = 0.80, strata = died)
 members_train <- training(members_split)
 members_test <- testing(members_split)
 ```
 
+
+### Stratified sampling simulation
+
+With simulation we can see the effect of stratification: we expect that the expected value does not change with stratification but the variance is lower.
+
+```{r simulate-stratified}
+simulate_stratified_sampling <- function(prop_in_dataset, n_resample = 50,
+                                         n_rows = 1000, seed = 45678) {
+  set.seed(seed)
+  
+  data_to_split <- tibble(died = c(
+    rep(1, floor(n_rows * prop_in_dataset)),
+    rep(0, floor(n_rows * (1 - prop_in_dataset)))
+  ))
+  
+  samples <- map_dfr(seq_len(n_resample), ~{
+    initial_split(data_to_split) %>% 
+      testing() %>% 
+      summarize(died_pct = mean(died))
+  }) 
+  
+  stratified_samples <- map_dfr(seq_len(n_resample), ~{
+    initial_split(data_to_split, strata = died) %>% 
+      testing() %>% 
+      summarize(died_pct = mean(died))
+  }) 
+  
+  rbind(
+    samples %>% mutate(stratified = FALSE),
+    stratified_samples %>% mutate(stratified = TRUE)
+  ) %>% 
+    group_by(stratified) %>% 
+    summarize(mean = mean(died_pct), var = var(died_pct))
+}
+```
+
+
+rsample does not stratify if class imbalance is [more extreme than 10%](https://rsample.tidymodels.org/reference/initial_split.html#arguments) 
+
+```{r stratified-b}
+simulate_stratified_sampling(0.09)
+```
+
+Stratified sampling happens:
+
+```{r stratified-c}
+simulate_stratified_sampling(0.11)
+```
+
+
+
 ## Continuous outcome data 
 
 For continuous outcome data (e.g. costs), a stratified random sampling approach would involve conducting a 80/20 split within each quartile and then pool the results together. For the [Ames housing dataset](https://www.tmwr.org/ames.html), the call would look like this:
 
-```{r}
+```{r more-split-b-05}
 set.seed(123)
 ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
 ames_train <- training(ames_split)
@@ -91,7 +151,7 @@ ames_test  <- testing(ames_split)
 
 For time series data where you'd want to allocate data to the training set/test set depending on a sorted order, you can use `initial_time_split()` which works similarly to `initial_split()`. The `prop` argument can be used to specify what proportion of the first part of data should be used as the training set. 
 
-```{r}
+```{r time-train-test-05}
 data(drinks)
 drinks_split <- initial_time_split(drinks)
 train_data <- training(drinks_split)
@@ -100,7 +160,7 @@ test_data <- testing(drinks_split)
 
 The `lag` argument can specify a lag period to use between the training and test set. This is useful if lagged predictors will be used during training and testing. 
 
-```{r}
+```{r lag-train-test-05}
 drinks_lag_split <- initial_time_split(drinks, lag = 12)
 train_data_lag <- training(drinks_lag_split)
 test_data_lag <- testing(drinks_lag_split)
@@ -113,16 +173,31 @@ It's important to figure out what the **independent experimental unit** is in yo
 
 In other datasets, there may be multiple rows per experimental unit (e.g. as in patients who are measured multiple times across time). This has implications for data splitting. To avoid data from the same experimental unit being in both the training and test set, split along the independent experimental units such that X% of experimental units are in the training set. 
 
+Example:
+
+```{r heights-05}
+# data source: http://www.bristol.ac.uk/cmm/learning/mmsoftware/data-rev.html#oxboys
+child_heights <- read_delim(here::here("data/Oxboys.txt"), col_names = FALSE, delim = " ") %>%
+  purrr::set_names(c("child_id", "age_norm", "height", "measurement_id", "season"))
+head(child_heights)
+```
+
+Depending on the modeling problem we may want to split the data to train and test set in a way that data points for children remain together. You can do this with the following code. 
+
+```{r heights-split-05}
+child_heights_split <- child_heights %>% 
+  group_nest(child_id) %>%
+  initial_split()
+
+child_heights_train <- training(child_heights_split) %>% 
+  unnest(data)
+```
+
+For other task it might be more suitable to split along measurement id and all childrens' last measurement will be the test set.
+
 ## What proportion should be used?
 
-```{r include = F}
-library(tweetrmd)
-```
-
-```{r echo = F}
-include_tweet("https://twitter.com/asmae_toumi/status/1356024351720689669?s=20")
-```
-
+https://twitter.com/asmae_toumi/status/1356024351720689669?s=20
 
 ![](images/provocative_8020.jpg)
 
@@ -159,7 +234,7 @@ We will learn more about how to remedy certain issues such as class imbalance, b
 <details>
   <summary> Meeting chat log </summary>
   
-  ```
+```
 00:09:24	Jon Harmon (jonthegeek):	Oops typo! Tan shouldn't have accepted that!
 00:10:05	Tan Ho:	umm
 00:10:18	Tyler Grant Smith:	I never take notes, but if I did, I wish I would take them like this
@@ -256,7 +331,7 @@ We will learn more about how to remedy certain issues such as class imbalance, b
 <details>
   <summary> Meeting chat log </summary>
   
-  ```
+```
 00:07:17	Janita Botha:	Sorry I'm late... Been slow booting up...
 00:08:46	Amélie Gourdon-Kanhukamwe (she/they):	https://supervised-ml-course.netlify.app/
 00:08:58	shamsuddeen:	Thank you
@@ -299,5 +374,44 @@ We will learn more about how to remedy certain issues such as class imbalance, b
 00:59:34	Amélie Gourdon-Kanhukamwe (she/they):	https://cran.r-project.org/web/packages/anomalize/vignettes/anomalize_quick_start_guide.html
 00:59:38	August:	https://cran.r-project.org/web/packages/anomalize/anomalize.pdf
 00:59:58	August:	https://cran.r-project.org/web/packages/anomalize/vignettes/anomalize_methods.html
+```
+</details>
+
+### Cohort 3
+
+`r knitr::include_url("https://www.youtube.com/embed/Dxf3kgIkbpI")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:23:04	Daniel Chen (he/him):	I don't know why it's 10%
+00:23:23	Daniel Chen (he/him):	it seems like a good heuristic?
+00:29:33	Daniel Chen (he/him):	(Strata below 10% of the total are pooled together.)
+00:54:00	Ildiko Czeller:	https://spatialsample.tidymodels.org/reference/spatialsample.html
+```
+</details>
+
+### Cohort 4
+
+`r knitr::include_url("https://www.youtube.com/embed/tdMUrdEKZWc")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:17:06	Isabella Velásquez:	Need an R2Cobalt package...
+00:17:16	Laura Rose:	yes!
+00:28:03	Isabella Velásquez:	https://juliasilge.com/blog/
+00:29:36	Isabella Velásquez:	Supervised Machine Learning for Text Analysis in R: https://smltar.com/
+00:29:45	Isabella Velásquez:	ISLR tidymodels Labs: https://emilhvitfeldt.github.io/ISLR-tidymodels-labs/index.html
+00:31:46	Isabella Velásquez:	A couple more posts! https://www.danielphadley.com/bootstrap_tutto/
+00:31:51	Isabella Velásquez:	https://www.rebeccabarter.com/blog/2020-03-25_machine_learning/
+00:32:10	Stephen Charlesworth:	Here’s a spreadsheet w/ different tidymodels uses: https://docs.google.com/spreadsheets/d/1PzbtanwieCCpaUt9G6XMhKXQ_0cBWfq_9xG9bH33Occ/edit#gid=652338894
+00:33:34	Federica Gazzelloni:	https://www.tidymodels.org/
+00:52:38	Stephen Charlesworth:	https://twitter.com/towards_ai/status/1332567246011555840
+00:53:06	Laura Rose:	😆
+00:55:13	Isabella Velásquez:	https://en.wikipedia.org/wiki/Pareto_principle
+01:05:39	Laura Rose:	cross validation using modeltime https://cran.r-project.org/web/packages/modeltime.resample/vignettes/getting-started.html
 ```
 </details>

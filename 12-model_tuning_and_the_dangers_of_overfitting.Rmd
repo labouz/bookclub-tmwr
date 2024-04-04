@@ -2,6 +2,8 @@
 
 ```{r setup12, echo = FALSE, include = FALSE}
 library(patchwork)
+library(tidyverse)
+library(tidymodels)
 ```
 
 **Learning objectives:**
@@ -58,7 +60,7 @@ set.seed(63)
 rs <- vfold_cv(ames_train, repeats = 10)
 ```
 
-```{r, echo = FALSE}
+```{r plot_ames-12, echo = FALSE}
 ames_train %>% 
   ggplot() +
   aes(x = Year_Remod_Add, y = Sale_Price, color = Central_Air) +
@@ -74,7 +76,7 @@ Which link function should we use...does it matter?
 - probit
 - complementary log-log
 
-```{r, warning  = FALSE, echo = FALSE}
+```{r llhood-12, warning  = FALSE, echo = FALSE}
 llhood <- function(...) {
   logistic_reg() %>% 
     set_engine("glm", ...) %>% 
@@ -94,7 +96,7 @@ bind_rows(
   kableExtra::kable_classic(full_width = F, html_font = "Cambria")
 ```
 
-```{r, echo = FALSE}
+```{r lloss-12, echo = FALSE}
 lloss <- function(...) {
   perf_meas <- metric_set(roc_auc, mn_log_loss)
     
@@ -106,7 +108,7 @@ lloss <- function(...) {
 }
 ```
 
-```{r eval=FALSE, include=FALSE, echo = FALSE}
+```{r resampled-12, eval=FALSE, include=FALSE, echo = FALSE}
 resampled_res <- 
   bind_rows(
     lloss()                                    %>% mutate(model = "logitistic"),
@@ -125,7 +127,7 @@ resampled_res <-
 saveRDS(resampled_res, file = here::here("data", "12-resample_results.rds"))
 ```
 
-```{r, echo = FALSE}
+```{r load-resampled-12, echo = FALSE}
 resampled_res <- readRDS(file = here::here("data", "12-resample_results.rds"))
 ```
 
@@ -133,7 +135,7 @@ If we just look at the log-likelihood statistic, the logistic link function appe
 
 However, if we use the area under the ROC curve, we see that there is no significant difference between the three link functions. When we plot the three link functions, we also see that they are not substantially different in predicting whether a house has central air.
 
-```{r, echo = FALSE}
+```{r logistic-12, echo = FALSE}
 logistic <- glm(Central_Air ~ Sale_Price + Year_Remod_Add, data = ames_test, family = binomial)
 logistic_slope <- coef(logistic)[3]/(-coef(logistic)[2])
 logistic_intercept <- coef(logistic)[1]/(-coef(logistic)[2]) 
@@ -145,7 +147,7 @@ cloglog_slope <- coef(cloglog)[3]/(-coef(cloglog)[2])
 cloglog_intercept <- coef(cloglog)[1]/(-coef(cloglog)[2]) 
 ```
 
-```{r echo = FALSE}
+```{r plots-12, echo = FALSE}
 p1 <- resampled_res %>% 
   filter(.metric == "mn_log_loss") %>% 
   ggplot(aes(x = mean, y = model)) + 
@@ -216,7 +218,7 @@ Good starting points (tidymodels website):
 See if we can predict the home sale price in our ames dataset 
 
 1. Start with a recipe
-```{r, echo= TRUE}
+```{r rf-recipe-12, echo= TRUE}
 ames_recipe <- recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Remod_Add + Bldg_Type, 
                       data = ames_train)
 ```
@@ -224,26 +226,26 @@ ames_recipe <- recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Remod_Add +
 ## Build our random forest model:
 
 random forest model
-```{r, echo = TRUE}
+```{r rf-model-12, echo = TRUE}
 rf_spec <- rand_forest() %>% 
   set_engine("ranger") %>% 
   set_mode("regression") 
 ```
 
 Main Arguments `args()`:
-```{r, echo = TRUE}
+```{r rf-args-12, echo = TRUE}
 args(rand_forest)
 ```
 
 engine specific arguments: 
-```{r, eval = FALSE}
+```{r ranger-help-12, eval = FALSE}
 ?ranger::ranger()
 ```
 
 ## Add tuning parameters:
 
 We can add main arguments (mtry, min_n) and engine specific arguments (regularization.factor)
-```{r, echo = TRUE}
+```{r rf-tuned-12, echo = TRUE}
 rf_spec_tuned <- rand_forest(mtry = tune(), trees = 2000, min_n = tune()) %>% 
   set_engine("ranger", regularization.factor = tune("reg")) %>% 
   set_mode("regression") 
@@ -251,8 +253,9 @@ rf_spec_tuned <- rand_forest(mtry = tune(), trees = 2000, min_n = tune()) %>%
 
 `tune()` returns an expression. This tags the parameters for optimization within the tidymodels framework
 
-```{r, echo = TRUE}
-parameters(rf_spec_tuned)
+```{r rf-params-12, echo = TRUE}
+rf_spec_tuned %>% 
+  extract_parameter_set_dials()
 ```
 
 The notation `nparam[+]` indicates a complete numeric parameter, `nparam[?]` indicates a missing value that needs to be addressed.
@@ -260,19 +263,20 @@ The notation `nparam[+]` indicates a complete numeric parameter, `nparam[?]` ind
 ## Updating tuning parameters:
 
 To see what we need to update/ finalize, we can call the function in the `{dials}` package
-```{r, echo = TRUE}
+```{r rf-mtry-12, echo = TRUE}
 mtry()
 ```
 
 We can also use the `{dials}` package to see the tuning range
-```{r, echo = TRUE}
+```{r min_n-12, echo = TRUE}
 min_n()
 ```
 
 To update/finalize or adjust the hyperparameters we can use the `update()` function to update in-place:
 
-```{r, echo = TRUE}
-parameters(rf_spec_tuned) %>% 
+```{r update-params-12, echo = TRUE}
+rf_spec_tuned %>% 
+  extract_parameter_set_dials() %>% 
   update(mtry = mtry(c(1, 4)))
 ```
 
@@ -282,11 +286,11 @@ We see that mtry is now a complete numeric parameter
 
 The update function may not be useful if a recipe is attached to a workflow that adjusts the number of columns. Instead of `update()` we can use the `finalize()` function.
 
-```{r, echo = TRUE}
+```{r updated_params-12, echo = TRUE}
 updated_params <- workflow() %>% 
   add_model(rf_spec_tuned) %>% 
   add_recipe(ames_recipe) %>% 
-  parameters() %>% 
+  extract_parameter_set_dials() %>% 
   finalize(ames_train)
 
 updated_params
@@ -294,8 +298,9 @@ updated_params
 
 With the `finalize()` function, mtry was completed based on the number of predictors in the training dataset
 
-```{r, echo = TRUE}
-updated_params %>% pull_dials_object("mtry")
+```{r pull_dials_object-12, echo = TRUE}
+updated_params %>%
+  extract_parameter_dials("mtry")
 ```
 
 ## What is next?
@@ -311,7 +316,7 @@ The parameter object we just explored knows the range of the parameters. the `{d
 <details>
   <summary> Meeting chat log </summary>
   
-  ```
+```
 00:11:27	Jon Harmon (jonthegeek):	usethis::use_package("patchwork")
 00:23:12	Jon Harmon (jonthegeek):	@jim Which chapter are you going to present: 13? 14? 15? 😊
 00:27:52	Jim Gruman:	:) sure, 13 sounds good
@@ -343,3 +348,62 @@ The parameter object we just explored knows the range of the parameters. the `{d
 00:54:23	Tan Ho:	if 16 isn't written by the time I present we can probably just review lol
 ```
 </details>
+
+### Cohort 2
+
+`r knitr::include_url("https://www.youtube.com/embed/uHntG4id-Y8")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:13:12	Luke Shaw:	sounds cool :)
+00:13:26	Kevin Kent:	For sure!
+00:34:14	August:	https://www.tidymodels.org/learn/develop/models/
+00:34:21	August:	build your own engine]
+00:34:40	August:	that's what the link is sorry.
+00:39:39	Amélie Gourdon-Kanhukamwe (she/they):	Hear hear!
+00:43:23	August:	I've added it to the slack group
+00:43:36	August:	come learn bayes!!! 
+00:43:47	Kevin Kent:	Yeah I’m trying to convert :)
+00:54:30	Kevin Kent:	https://matrixprofile.org/
+00:55:53	August:	found it! 
+00:55:55	August:	https://www.tidymodels.org/learn/develop/recipes/
+00:56:48	Stephen Holsenbeck:	Good to see you too, thank you!
+00:56:49	Luke Shaw:	thanks Janita - see you all next week :)
+00:56:51	Amélie Gourdon-Kanhukamwe (she/they):	Sorry all, been working all night and I am knackered, but thanks Janita!
+```
+</details>
+
+
+### Cohort 3
+
+`r knitr::include_url("https://www.youtube.com/embed/fe3uixT_USg")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:36:03	Federica :	finalize() with {dial}  take a parameter object and modify the unknown parts
+00:44:40	Daniel Chen (TA), NYC:	https://dials.tidymodels.org/
+00:49:04	jiwan:	i think you're muted, couldn't hear you
+00:52:24	Federica :	I was wondering about the regularization_factor()
+00:54:21	jiwan:	These parameters are auxiliary to random forest models that use the "ranger" engine. They correspond to tuning parameters that would be specified using set_engine("ranger", ...).
+00:59:27	jiwan:	dials::mtry()
+# Randomly Selected Predictors (quantitative)
+Range: [1, ?]
+01:00:29	jiwan:	regularization.factor = tune("reg")
+01:00:42	jiwan:	regularization.factor = tune()
+01:03:32	jiwan:	> dials::regularization_factor
+function (range = c(0, 1), trans = NULL) 
+{
+    new_quant_param(type = "double", range = range, inclusive = c(TRUE, 
+        TRUE), trans = trans, default = 1, label = c(regularization_factor = "Gain Penalization"), 
+        finalize = NULL)
+}
+```
+</details>
+
+### Cohort 4
+
+`r knitr::include_url("https://www.youtube.com/embed/NpBXB17MyfM")`

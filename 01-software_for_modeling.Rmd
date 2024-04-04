@@ -103,7 +103,7 @@ The final model may be used for a conclusion and/or produce predictions on new d
 <details>
   <summary> Meeting chat log </summary>
   
-  ```
+```
 00:10:57	Andrew G. Farina:	Sorry guys, I have a sleeping baby in the room, so I am stuck with only chat tonight. Looking forward to the discussion though.
 00:11:10	mayagans:	Hi baby!!!
 00:11:31	mayagans:	(Hi everyone else too — Im also in a loud house right now super stoked for this!)
@@ -213,7 +213,7 @@ How does the significance of the model's variables play into the above? Let's ta
 <details>
   <summary> Meeting chat log </summary>
   
-  ```
+```
 00:06:50	Stephen Holsenbeck:	https://docs.google.com/spreadsheets/d/1vD4LG4_nhsxSAxXiBi42iKIvZXQtNxgB5C_PUkIZ0wo/edit#gid=0
 00:08:48	Amélie Gourdon-Kanhukamwe:	Questions (if forgotten): name (pronunciation), location, fun fact about yourself, why are you here?
 00:21:23	Carmen Santana:	when the pandemic is over you should come to Portugal, great wine here!!
@@ -244,7 +244,7 @@ How does the significance of the model's variables play into the above? Let's ta
 <details>
   <summary> Meeting chat log </summary>
   
-  ```
+```
 00:13:08	Morgan Grovenburg:	Daniel I love your Blue's Clues background!
 00:13:34	Daniel Chen:	( : #steve
 00:13:56	Morgan Grovenburg:	I miss Steve!
@@ -262,5 +262,34 @@ How does the significance of the model's variables play into the above? Let's ta
 01:00:32	Daniel Chen:	i can do next week
 01:00:40	Ildiko Czeller:	https://github.com/r4ds/bookclub-tmwr/blob/main/README.md
 01:02:58	Daniel Chen:	see/talk to everyone on slack :)
+```
+</details>
+
+### Cohort 4
+
+`r knitr::include_url("https://www.youtube.com/embed/93MbbtczA7M")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:32:07	Federica Gazzelloni:	https://www.tmwr.org/index.html
+00:32:34	Federica Gazzelloni:	https://www.tidymodels.org/
+00:34:44	Federica Gazzelloni:	https://www.youtube.com/c/JuliaSilge
+00:37:03	Federica Gazzelloni:	https://github.com/r4ds/bookclub-tmwr
+```
+</details>
+
+`r knitr::include_url("https://www.youtube.com/embed/U8-Lj0AKgZw")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:09:51	Brandon Hurr:	https://docs.google.com/spreadsheets/d/1-S1UbKWay_TeR5n9LkztZY2XXrMjZr3snl1srPvTvH4/edit#gid=0
+00:45:33	Ryan Metcalf:	What if we were to augment / change / modify the current variables and then repredict?
+00:46:12	Brandon Hurr:	Happens all the time in my world. You try and explain with the least amount of variables as you can and then dig more when you don’t cover all the variation in the data that you want.
+00:46:36	Brandon Hurr:	Even the imperfect models are considered “mechanistic”
+01:03:01	Isabella Velásquez:	And I’m in the US ! In Central time right now but will be in Pacific time soon - thank you so much for pushing back the time a bit 🙌
 ```
 </details>

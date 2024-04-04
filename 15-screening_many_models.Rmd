@@ -2,29 +2,18 @@
 
 **Learning objectives:**
 
--   Use the `{parsnip}` addin to create a set of **model specifications.**
-
--   Create a **workflow set** with the `{workflowsets}` package.
-
--   Describe the purposes of the **workflow set columns.**
-
--   Create a **workflow set** with a `recipe` preprocessor.
-
--   Create a **workflow set** with a `{dplyr}` selector preprocessor.
-
--   **Tune** and **evaluate workflow sets.**
-
--   Use `workflowsets::workflow_map()` to **tune all models** in a workflow set.
-
--   Use convenience functions such as `workflowsets::rank_results()` to **examine** workflow set tuning results.
-
--   **Visualize** workflow set tuning results.
-
--   Use `workflowsets::workflow_map` with `{finetune}` to **efficiently screen models** using the **racing approach.**
-
--   **Compare** the **results of the racing approach** to the **results of the full workflow set screening.**
-
--   **Finalize the best model** from a workflow set.
+- Use the `{parsnip}` `Generate parsnip model specifications` addin to create a set of **model specifications.**
+- Create a **workflow set** with the `{workflowsets}` package.
+  - Describe the purposes of the **workflow set columns.**
+  - Create a **workflow set** with a `recipe` preprocessor.
+  - Create a **workflow set** with a `{dplyr}` selector preprocesor.
+- **Tune** and **evaluate workflow sets.**
+  - Use `workflowsets::workflow_map()` to **tune all models** in a workflow set.
+  - Use convenience functions such as `workflowsets::rank_results()` to **examine** workflow set tuning results.
+  - **Visualize** workflow set tuning results.
+- Use `workflowsets::workflow_map` with `{finetune}` to **efficiently screen models** using the **racing approach.**
+  - **Compare** the **results of the racing approach** to the **results of the full workflow set screening.**
+- **Finalize the best model** from a workflow set.
 
 ## Obligatory Setup
 
@@ -45,7 +34,7 @@ How I felt reading this chapter with `concrete` from `{modeldata}`
 
 </details>
 
-```{r}
+```{r 15-setup}
 library(tidyverse)
 library(tidymodels)
 theme_set(theme_minimal(base_size = 16))
@@ -58,7 +47,7 @@ df <-
 df %>% skimr::skim()
 ```
 
-```{r}
+```{r 15-corrr}
 library(corrr)
 df_selected <-
   df %>%
@@ -92,7 +81,7 @@ p_cors <-
   aes(x = col1, y = col2) +
   geom_tile(aes(fill = cor), alpha = 0.7) +
   geom_text(aes(label = scales::number(cor, accuracy = 0.1))) +
-  guides(fill = FALSE) +
+  guides(fill = "none") +
   scale_fill_viridis_c(option = 'E', direction = 1, begin = 0.2) +
   labs(x = NULL, y = NULL) +
   theme(
@@ -104,7 +93,7 @@ p_cors
 
 ## Creating `workflow_set`s
 
-```{r}
+```{r 15-workflowset}
 seed <- 2021
 col_y <- 'ladder_score'
 col_y_sym <- col_y %>% sym()
@@ -120,7 +109,7 @@ folds <-
 folds
 ```
 
-```{r}
+```{r 15-formulas}
 # My weird way of creating formulas sometimes, which can be helpful if you're experimenting with different response variables.
 form <- paste0(col_y, '~ .') %>% as.formula()
 rec_norm <-
@@ -143,7 +132,7 @@ Code for recipes...
 
 </summary>
 
-```{r}
+```{r 15-models}
 library(rules)
 library(baguette)
 f_set <- function(spec) {
@@ -185,7 +174,7 @@ spec_cart <-
   f_set()
 
 spec_cart_bag <- 
-  baguette::bag_tree() %>% 
+  bag_tree() %>% 
   set_engine('rpart', times = 50L) %>% 
   f_set()
 
@@ -207,7 +196,7 @@ spec_xgb <-
   f_set()
 
 spec_cube <- 
-  rules::cubist_rules(committees = tune(), neighbors = tune()) %>% 
+  cubist_rules(committees = tune(), neighbors = tune()) %>% 
   set_engine('Cubist')
 ```
 
@@ -227,7 +216,7 @@ How I felt after creating 10 recipes
 
 We can create `workflow_set`s, combining the recipes that standardizes the predictors with the non-linear models that work best when predictors are all on the same scale.
 
-```{r}
+```{r 15-workflowsets-together}
 library(workflowsets)
 
 sets_norm <- 
@@ -244,7 +233,7 @@ sets_norm
 
 Let's apply the quadratic pre-processing to models where it is most applicable.
 
-```{r}
+```{r 15-sets-poly}
 sets_poly <- 
   workflow_set(
     preproc = list(poly = rec_poly), 
@@ -254,7 +243,7 @@ sets_poly <-
 
 Finally, there are several recipes that don't really need pre-processing. Nonetheless, we need to have a `preproc` step, so we can use `workflowsets::workflow_variables()` for a dummy pre-processing step.
 
-```{r}
+```{r 15-sets-simple}
 sets_simple <- 
   workflow_set(
     preproc = list(form),
@@ -273,7 +262,7 @@ sets_simple
 
 We can bind all of our `workflow_set`s together.
 
-```{r}
+```{r 15-all-sets}
 sets <-
   bind_rows(sets_norm, sets_poly, sets_simple) %>% 
   mutate(across(wflow_id, ~str_remove(.x, '^simple_')))
@@ -282,12 +271,12 @@ sets
 
 And do the thing! (Observe the elegance.)
 
-```{r echo=F, include=F, eval=T}
+```{r 15-load-results, echo=F, include=F, eval=T}
 path_res_grid <- here::here('data', '15-res_grid.rds')
 do_run <- !file.exists(path_res_grid)
 ```
 
-```{r echo=T, include=T, eval=do_run}
+```{r 15-do-tune, echo=T, include=T, eval=do_run}
 ctrl_grid <-
   control_grid(
     save_pred = TRUE,
@@ -318,11 +307,11 @@ How I felt waiting for this to finish running
 
 </details>
 
-```{r echo=F, incude=F, eval=do_run}
+```{r 15-write-res_grid, echo=F, incude=F, eval=do_run}
 write_rds(res_grid, path_res_grid)
 ```
 
-```{r echo=F, include=F, eval=T}
+```{r 15-read-res_grid, echo=F, include=F, eval=T}
 res_grid <- read_rds(path_res_grid)
 ```
 
@@ -330,7 +319,7 @@ res_grid <- read_rds(path_res_grid)
 
 Let's look at our results
 
-```{r}
+```{r 15-ranking_models}
 # How many models are there?
 n_model <-
   res_grid %>% 
@@ -359,7 +348,7 @@ res_ranks
 
 Plot the ranks with standard errors.
 
-```{r echo=F, include=T, eval=T, fig.show=T}
+```{r 15-plots, echo=F, include=T, eval=T, fig.show=T}
 # workflowsets:::autoplot.workflow_set
 object <- res_grid_filt %>% filter(wflow_id != 'gb') # %>% filter(.metric == 'rmse')
 rank_metric <- 'rmse'
@@ -396,7 +385,7 @@ p_ranks <-
     width = diff(range(res$rank))/75
   ) +
   coord_flip() +
-  guides(color = FALSE) +
+  guides(color = "none") +
   theme(legend.position = 'top') +
   labs(
     x = 'Workflow Rank', y = metric_info$metric,
@@ -407,7 +396,7 @@ p_ranks
 
 If we wanted to look at the sub-models for a given `wflow_id`, we could do that with `autoplot()`.
 
-```{r}
+```{r 15-autoplot}
 autoplot(
   res_grid, 
   id = 'norm_svm_p', 
@@ -433,7 +422,7 @@ As shown in the book chapter, this could be a really good use case for `finetune
 
 Now we can finalize our choice of model.
 
-```{r stacks, echo=F, include=F, eval=F}
+```{r 15-stacks, echo=F, include=F, eval=F}
 library(stacks)
 
 stack <-
@@ -448,7 +437,7 @@ fit_ens <- blend %>% stacks::fit_members()
 fit_ens
 ```
 
-```{r}
+```{r 15-best-stacks}
 wflow_id_best <- 
   res_ranks %>% 
   slice_min(rank, with_ties = FALSE) %>% 
@@ -456,12 +445,12 @@ wflow_id_best <-
 
 wf_best <-
   res_grid %>% 
-  pull_workflow_set_result(wflow_id_best) %>% 
+  extract_workflow_set_result(wflow_id_best) %>% 
   select_best(metric = 'rmse')
 
 fit_best <-
   res_grid %>% 
-  pull_workflow(wflow_id_best) %>% 
+  extract_workflow(wflow_id_best) %>% 
   finalize_workflow(wf_best) %>% 
   last_fit(split = split)
 
@@ -473,7 +462,7 @@ metrics_best
 
 Finally, the canonical observed vs. predicted scatter plot.
 
-```{r }
+```{r 15-preds}
 p_preds <-
   fit_best %>% 
   collect_predictions() %>% 
@@ -486,3 +475,87 @@ p_preds <-
   labs(x = 'observed', y = 'predicted')
 p_preds
 ```
+
+## Meeting Videos
+
+### Cohort 1
+
+`r knitr::include_url("https://www.youtube.com/embed/Oqla9cWYCak")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:07:17	Jordan Krogmann:	@jon the power of the doge shirt!
+00:13:59	Jordan Krogmann:	ggpairs is a great package for this
+00:14:20	Conor Tompkins:	I always want to tilt corr matrices a little bit
+00:14:22	Asmae Toumi:	eyes emoji
+00:14:36	Jon Harmon:	👀
+00:26:51	Jon Harmon:	https://github.com/tidymodels/workflowsets/pull/48
+00:34:23	Jim Gruman:	gotta step off … thank you Tony!!!
+```
+</details>
+
+### Cohort 2
+
+`r knitr::include_url("https://www.youtube.com/embed/M71Ey5Ikf4Y")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:08:13	Luke Shaw:	https://www.datakind.org/
+00:11:46	Luke Shaw:	https://www.tidyverse.org/blog/2021/05/choose-tidymodels-adventure/
+00:12:54	Luke Shaw:	https://www.youtube.com/watch?v=2OfTEakSFXQ
+00:44:23	shamsuddeen:	Is ok for me too
+```
+</details>
+
+
+### Cohort 3
+
+`r knitr::include_url("https://www.youtube.com/embed/p87Eum6SdD8")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:16:29	Federica Gazzelloni:	https://www.tidymodels.org/start/models/
+00:17:29	Federica Gazzelloni:	https://r4ds.had.co.nz/many-models.html
+00:31:46	Daniel Chen (he/him):	since there was a talk about "the whole thing" I feel like this set of examples is a good candidate for it all wihtout having to we-write large swaths of things
+00:32:54	Ildiko Czeller:	exactly! I feel like some of the package articles do a better job showing the "whole" thing at one place than the book
+00:34:28	Daniel Chen (he/him):	the book is more for learning ml and concepts, but since tidymodels is new (to me) i'm always fighting with how I used to do things or how things are done manually
+00:35:17	Daniel Chen (he/him):	I also haven't fit a predictive model since dissertation things. so I know for me personally my confusion and struggle is mainly not actually using it regularly
+00:36:57	Ildiko Czeller:	for me too I currently do not need predictive models for work so I need to find use cases outside work... which I haven't done yet but plan to
+00:38:32	Ben:	I thought it was only me, I can relate to your struggle, its actually a thing. 
+00:53:30	Ildiko Czeller:	workflow_map has a default value fn = "tune_grid", which I would prefer always write explicityly. it is a sensible default but it is just weird to read the code without it for me. like we map without specifying a function
+00:55:24	Daniel Chen (he/him):	+1
+00:58:39	Daniel Chen (he/him):	40 minutes : |
+00:59:00	Daniel Chen (he/him):	the verbose = TRUE is probably there so you know it's doing something. and didn't just stall
+00:59:09	Ildiko Czeller:	I wonder which of the 10 models makes it so slow. maybe neural net?
+00:59:52	Daniel Chen (he/him):	3min * 12models. that's not too bad
+01:00:29	Ildiko Czeller:	hmm there are several models taking several minutes there. interesting. it would probably worth it to set up computing in the cloud on a more powerful computer if it is important.
+01:01:18	Ildiko Czeller:	yeah it is not too bad to wait once, but if you realise in the end you made a mistake...
+01:05:26	Daniel Chen (he/him):	that was a good review of the most confusing chapters
+01:11:28	Daniel Chen (he/him):	i have conference stuff next 2 weeks so i'm +1 for break
+```
+</details>
+
+### Cohort 4
+
+`r knitr::include_url("https://www.youtube.com/embed/Jp2FYvNR7zA")`
+
+<details>
+  <summary> Meeting chat log </summary>
+  
+```
+00:23:21	Federica Gazzelloni:	https://www.tidymodels.org/find/#search-parsnip-models
+00:23:27	Federica Gazzelloni:	https://baguette.tidymodels.org/
+00:23:57	Federica Gazzelloni:	mars Multivariate adaptive regression spline
+00:25:21	Ryan Metcalf:	[SubModel Optimization](https://www.tmwr.org/grid-search.html#submodel-trick)
+00:39:01	Steve C:	https://cran.r-project.org/web/packages/Cubist/vignettes/cubist.html
+00:39:05	Steve C:	cubist
+00:57:32	Brandon Hurr:	https://stats.oarc.ucla.edu/other/mult-pkg/whatstat/
+01:10:12	Isabella Velásquez:	Thank you!!
+```
+</details>
